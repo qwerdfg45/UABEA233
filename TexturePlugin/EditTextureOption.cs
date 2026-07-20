@@ -30,13 +30,13 @@ namespace TexturePlugin
             return true;
         }
 
-        public async Task<bool> ExecutePlugin(Window win, AssetWorkspace workspace, List<AssetContainer> selection)
+        public async Task<bool> ExecutePlugin(Window win, AssetWorkspace workspace, List<AssetContainer> selection,int mode)
         {
             AssetContainer cont = selection[0];
 
             AssetTypeValueField texBaseField = TextureHelper.GetByteArrayTexture(workspace, cont);
             TextureFile texFile = TextureFile.ReadTextureFile(texBaseField);
-            EditDialog dialog = new EditDialog(texFile.m_Name, texFile, texBaseField, cont.FileInstance);
+            EditDialog dialog = new EditDialog(texFile.m_Name, texFile, texBaseField, cont.FileInstance,mode);
             bool saved = await dialog.ShowDialog<bool>(win);
             if (saved)
             {
@@ -49,6 +49,16 @@ namespace TexturePlugin
                 return true;
             }
             return false;
+        }
+
+        bool UABEAPluginOption.SelectionValidForPlugin(AssetsManager am, UABEAPluginAction action, List<AssetContainer> selection, out string name)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        Task<bool> UABEAPluginOption.ExecutePlugin(Window win, AssetWorkspace workspace, List<AssetContainer> selection)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

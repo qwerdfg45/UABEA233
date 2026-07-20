@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Platforms>AnyCPU;x64;x86</Platforms>
+	  
   </PropertyGroup>
 
   <PropertyGroup>
@@ -108,7 +109,7 @@
     <Copy SourceFiles="$(CrunchBinDir)" DestinationFolder="$(UABEABinDir)runtimes\$(UABEANativeConfig)\native" ContinueOnError="true" />
     
     <!-- copy textureplugin -->
-    <Copy SourceFiles="$(OutputPath)TexturePlugin.dll" DestinationFolder="$(UABEABinDir)plugins" ContinueOnError="true" />
+    <Copy SourceFiles="$(OutputPath)TexturePlugin.dll" DestinationFolder="W:\Users\233\Desktop" ContinueOnError="true" />
   </Target>
   
   <!-- publish event -->
