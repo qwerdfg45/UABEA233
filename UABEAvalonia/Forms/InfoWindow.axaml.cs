@@ -1,10 +1,3 @@
-using AssetsTools.NET;
-using AssetsTools.NET.Extra;
-using Avalonia;
-using Avalonia.Collections;
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Platform.Storage;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,7 +5,18 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
+using AssetsTools.NET;
+using AssetsTools.NET.Extra;
+using AssetsTools.NET.Texture;
+using Avalonia;
+using Avalonia.Collections;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Platform.Storage;
+using AvaloniaEdit.Editing;
+using TexturePlugin;
 using UABEAvalonia.Plugins;
 
 namespace UABEAvalonia
@@ -29,10 +33,20 @@ namespace UABEAvalonia
         private bool searchDown;
         private bool searchCaseSensitive;
         private bool searching;
-
         private bool ignoreCloseEvent;
-
         private HashSet<AssetClassID> filteredOutTypeIds;
+
+
+        private List<string> concontainermls = [];
+        private int mode = 0;
+        private List<AssetsFileInstance> assetsFilesml = new List<AssetsFileInstance>();
+        private List<AssetContainer> acs = new List<AssetContainer>();
+        public int ReturnData { get; set; } = 1;
+
+
+
+
+
 
         //would prefer using a stream over byte[] but whatever, will for now
         public List<Tuple<AssetsFileInstance, byte[]>> ChangedAssetsDatas { get; set; }
@@ -51,6 +65,9 @@ namespace UABEAvalonia
             this.AttachDevTools();
 #endif
             //generated events
+
+
+
             KeyDown += InfoWindow_KeyDown;
             menuAdd.Click += MenuAdd_Click;
             menuSave.Click += MenuSave_Click;
@@ -78,7 +95,152 @@ namespace UABEAvalonia
             dataGrid.SelectionChanged += DataGrid_SelectionChanged;
             Closing += InfoWindow_Closing;
 
+
+
+            Opened += loginml;
+
+
             ignoreCloseEvent = false;
+        }
+
+        private async void loginml(object? sender, EventArgs e)
+        {
+            if (mode == 1)
+            {
+                List<AssetContainer> conts = new List<AssetContainer>();
+                foreach (var item in acs)
+                {
+                    if (item.Container.Contains("/FanHX/") && item.ClassId == 28)
+                    {
+                        conts.Add(item);
+                        Console.WriteLine("目标1" + item.Container);
+                        await SingleExport(this, Workspace, conts, "login");
+                        //ExportTextureOption eto = new ExportTextureOption();
+                        // await eto.ExecutePlugin(this, Workspace, conts);
+                        //await SingleExport(this, Workspace, conts,"123");
+                        //Console.WriteLine(await ExecutePlugin(this, Workspace, conts));
+                        //Pluginlite pluginlite = new Pluginlite();
+                        //await pluginlite.ExecutePlugin(this, Workspace, conts);
+                        conts.Clear();
+                    }
+                }
+                foreach (var item in acs)
+                {
+                    if (!item.Container.Contains("/FanHX/") && !item.Container.Contains("/JP/") && item.ClassId == 28)
+                    {
+                        conts.Add(item);
+                        Console.WriteLine("目标2" + item.Container);
+                        EditTextureOption eto = new EditTextureOption();
+                        await eto.ExecutePlugin(this, Workspace, conts, 1);
+                        await SaveFile(false);
+                        ClearModified();
+                        Workspace.Modified = false;
+                        conts.Clear();
+                        ReturnData = 2;
+                        Close();
+                    }
+                }
+            }
+            if (mode == 2)
+            {
+                // List<long> pathids = new List<long>();
+
+                List<AssetContainer> conts = new List<AssetContainer>();
+
+
+                List<AssetInfoDataGridItem> itemList = GetDataGridItemsSorted(dgcv);
+                foreach (var item in itemList)
+                {
+                    if (item.Name.Contains("GameObject"))
+                    {
+                        conts.Add(item.assetContainer);
+                    }
+                }
+                Console.WriteLine(conts[0].PathId);
+
+
+
+
+
+                
+
+
+                AssetTypeValueField? baseField = Workspace.GetBaseField(conts[0]);
+
+                AssetImportExport aie = new AssetImportExport();
+                
+                string lpp1 = aie.RecurseJsonDump(baseField,false).ToString();
+                Console.WriteLine(lpp1);
+
+
+
+
+                string lpp2 = ExportJsonml(conts[0]);
+                Console.WriteLine(lpp2);
+
+
+                ImportFromStringml(lpp2, conts[0]);
+
+
+
+
+
+
+
+
+
+
+
+            }
+        }
+
+        public async Task<bool> SingleExport(Window win, AssetWorkspace workspace, List<AssetContainer> selection, string name)
+        {
+            AssetContainer cont = selection[0];
+
+            AssetTypeValueField texBaseField = TextureHelper.GetByteArrayTexture(workspace, cont);
+            TextureFile texFile = TextureFile.ReadTextureFile(texBaseField);
+
+            // 0x0 texture, usually called like Font Texture or smth
+            if (texFile.m_Width == 0 && texFile.m_Height == 0)
+            {
+                await MessageBoxUtil.ShowDialog(win, "Error", $"Texture size is 0x0. Texture cannot be exported.");
+                return false;
+            }
+
+            string assetName = PathUtils.ReplaceInvalidPathChars(texFile.m_Name);
+
+
+
+            string errorAssetName = $"{Path.GetFileName(cont.FileInstance.path)}/{cont.PathId}";
+
+            //bundle resS
+            if (!TextureHelper.GetResSTexture(texFile, cont.FileInstance))
+            {
+                string resSName = Path.GetFileName(texFile.m_StreamData.path);
+                await MessageBoxUtil.ShowDialog(win, "Error", $"[{errorAssetName}]: resS was detected but {resSName} was not found in bundle");
+                return false;
+            }
+
+            byte[] data = TextureHelper.GetRawTextureBytes(texFile, cont.FileInstance);
+
+            if (data == null)
+            {
+                string resSName = Path.GetFileName(texFile.m_StreamData.path);
+                await MessageBoxUtil.ShowDialog(win, "Error", $"[{errorAssetName}]: resS was detected but {resSName} was not found on disk");
+                return false;
+            }
+
+            byte[] platformBlob = TextureHelper.GetPlatformBlob(texBaseField);
+            uint platform = cont.FileInstance.file.Metadata.TargetPlatform;
+
+            bool success = TextureImportExport.Export(data, name + ".png", texFile.m_Width, texFile.m_Height, (TextureFormat)texFile.m_TextureFormat, platform, platformBlob);
+            if (!success)
+            {
+                string texFormat = ((TextureFormat)texFile.m_TextureFormat).ToString();
+                await MessageBoxUtil.ShowDialog(win, "Error", $"[{errorAssetName}]: Failed to decode texture format {texFormat}");
+            }
+            return success;
         }
 
         private void InfoWindow_KeyDown(object? sender, KeyEventArgs e)
@@ -114,7 +276,41 @@ namespace UABEAvalonia
             filteredOutTypeIds = new HashSet<AssetClassID>();
 
             ChangedAssetsDatas = new List<Tuple<AssetsFileInstance, byte[]>>();
+
         }
+        public InfoWindow(AssetsManager assetsManager, List<AssetsFileInstance> assetsFiles, bool fromBundle, int modelll) : this()
+        {
+            Workspace = new AssetWorkspace(assetsManager, fromBundle);
+            Workspace.ItemUpdated += Workspace_ItemUpdated;
+            Workspace.MonoTemplateLoadFailed += Workspace_MonoTemplateLoadFailed;
+
+            LoadAllAssetsWithDeps(assetsFiles);
+            SetupContainers();
+            MakeDataGridItems();
+            dataGrid.ItemsSource = dataGridItems;
+
+            dgcv = GetDataGridCollectionView(dataGrid);
+
+            pluginManager = new PluginManager();
+            pluginManager.LoadPluginsInDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "plugins"));
+
+            searchText = "";
+            searchStart = 0;
+            searchDown = false;
+            searchCaseSensitive = true;
+            searching = false;
+
+            filteredOutTypeIds = new HashSet<AssetClassID>();
+
+            ChangedAssetsDatas = new List<Tuple<AssetsFileInstance, byte[]>>();
+
+
+
+            assetsFilesml = assetsFiles;
+            mode = modelll;
+        }
+
+
 
         private async void MenuAdd_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
@@ -516,7 +712,7 @@ namespace UABEAvalonia
                     }
                 }
 
-                await MessageBoxUtil.ShowDialog(this, "Success", "File saved. To complete changes, exit this window and File->Save in bundle window.");
+                // await MessageBoxUtil.ShowDialog(this, "Success", "File saved. To complete changes, exit this window and File->Save in bundle window.");
             }
             else
             {
@@ -795,6 +991,35 @@ namespace UABEAvalonia
             }
         }
 
+
+
+        private string ExportJsonml(AssetContainer Cont)
+        {
+
+
+            AssetTypeValueField? baseField = Workspace.GetBaseField(Cont);
+            using (MemoryStream ms = new MemoryStream())
+            using (StreamWriter sw = new StreamWriter(ms))
+            {
+                AssetImportExport exporter = new AssetImportExport();
+
+                exporter.DumpJsonAsset(sw, baseField);
+
+                sw.Flush();
+
+                ms.Position = 0;
+
+                using (StreamReader sr = new StreamReader(ms))
+                {
+                    return sr.ReadToEnd();
+                }
+            }
+        }
+
+
+
+
+
         private async Task BatchImportRaw(List<AssetContainer> selection)
         {
             var selectedFolders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions()
@@ -861,6 +1086,10 @@ namespace UABEAvalonia
                 Workspace.AddReplacer(selectedInst, replacer, new MemoryStream(bytes));
             }
         }
+
+
+
+  
 
         private async Task BatchImportDump(List<AssetContainer> selection)
         {
@@ -976,6 +1205,48 @@ namespace UABEAvalonia
                 Workspace.AddReplacer(selectedInst, replacer, new MemoryStream(bytes));
             }
         }
+
+
+        private void ImportFromStringml(string json, AssetContainer selectedCont)
+        {
+            AssetsFileInstance selectedInst = selectedCont.FileInstance;
+            AssetImportExport importer = new AssetImportExport();
+
+            AssetTypeTemplateField tempField =
+                Workspace.GetTemplateField(selectedCont);
+
+            byte[]? bytes;
+
+            using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+            using (StreamReader sr = new StreamReader(ms))
+            {
+                bytes = importer.ImportJsonAsset(
+                    tempField,
+                    sr,
+                    out string? exceptionMessage
+                );
+
+                if (bytes == null)
+                {
+                    Console.WriteLine("ImportFromStringml中bytes == null");
+                    return;
+                }
+            }
+
+            AssetsReplacer replacer =
+                AssetImportExport.CreateAssetReplacer(selectedCont, bytes);
+
+            Workspace.AddReplacer(
+                selectedInst,
+                replacer,
+                new MemoryStream(bytes)
+            );
+        }
+
+
+
+
+
 
         public async Task<bool> ShowEditAssetWindow(AssetContainer cont)
         {
@@ -1118,9 +1389,12 @@ namespace UABEAvalonia
 
             foreach (AssetContainer cont in Workspace.LoadedAssets.Values)
             {
+                acs.Add(cont);
                 AddDataGridItem(cont);
+
             }
             return dataGridItems;
+
         }
 
         private AssetInfoDataGridItem AddDataGridItem(AssetContainer cont, bool isNewAsset = false)
@@ -1136,10 +1410,18 @@ namespace UABEAvalonia
             string modified;
 
             container = cont.Container;
+
             fileId = Workspace.LoadedFiles.IndexOf(thisFileInst);
             pathId = cont.PathId;
             size = (int)cont.Size;
             modified = "";
+
+
+
+           
+            if (container != null) concontainermls.Add(container);
+
+
 
             AssetNameUtils.GetDisplayNameFast(Workspace, cont, true, out name, out type);
 
@@ -1161,7 +1443,7 @@ namespace UABEAvalonia
                 Modified = modified,
                 assetContainer = cont
             };
-
+            Console.WriteLine($"{name,-25} {container,-40} {pathId,20}");
             if (!isNewAsset)
                 dataGridItems.Add(item);
             else
@@ -1207,6 +1489,20 @@ namespace UABEAvalonia
             }
             return exts;
         }
+        private List<AssetContainer> GetLoginAssetsReplaced()
+        {
+
+            List<AssetInfoDataGridItem> gridItems = GetSelectedGridItems();
+            List<AssetContainer> exts = new List<AssetContainer>();
+            foreach (var gridItem in gridItems)
+            {
+                exts.Add(gridItem.assetContainer);
+            }
+            return exts;
+        }
+
+
+
 
         private void SetFieldModified(AssetInfoDataGridItem gridItem)
         {

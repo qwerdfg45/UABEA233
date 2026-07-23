@@ -1,4 +1,4 @@
-using AssetsTools.NET;
+﻿using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using Avalonia;
 using Avalonia.Controls;
@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace UABEAvalonia
 {
@@ -25,7 +26,7 @@ namespace UABEAvalonia
         private bool changesMade; // stays true even after saving
         private bool ignoreCloseEvent;
         private List<InfoWindow> openInfoWindows;
-
+        private int datareturn;
         //public ObservableCollection<ComboBoxItem> comboItems;
 
         public MainWindow()
@@ -39,6 +40,11 @@ namespace UABEAvalonia
             this.AttachDevTools();
 #endif
             //generated events
+            Al_loginth.Click += Al_loginth_Click;
+            Al_texth.Click += Al_texth_Click;
+            Al_texdc.Click += Al_texdc_Click;
+
+
             menuOpen.Click += MenuOpen_Click;
             menuLoadPackageFile.Click += MenuLoadPackageFile_Click;
             menuClose.Click += MenuClose_Click;
@@ -67,6 +73,150 @@ namespace UABEAvalonia
 
             ThemeHandler.UseDarkTheme = ConfigurationManager.Settings.UseDarkTheme;
         }
+
+        private async void Al_texdc_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+
+
+            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
+                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
+                .ToArray();
+
+
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 2);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+            else
+            {
+                if (item.IsSerialized)
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file, " +
+                                 "although the asset is serialized. Maybe the " +
+                                 "file got corrupted or is too new of a version?");
+                }
+                else
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file. " +
+                                 "If you want to export a non-assets file, " +
+                                 "use Export.");
+                }
+            }
+
+        }
+        private async void Al_texth_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+
+            
+            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
+                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
+                .ToArray();
+
+            
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 3);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+            else
+            {
+                if (item.IsSerialized)
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file, " +
+                                 "although the asset is serialized. Maybe the " +
+                                 "file got corrupted or is too new of a version?");
+                }
+                else
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file. " +
+                                 "If you want to export a non-assets file, " +
+                                 "use Export.");
+                }
+            }
+
+        }
+
+
+        
+
+
 
         private async void MainWindow_Initialized(object? sender, EventArgs e)
         {
@@ -207,6 +357,79 @@ namespace UABEAvalonia
             OpenFiles(selectedFilePaths);
         }
 
+
+        private async void Al_loginth_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+
+            // ��ȡ��ǰĿ¼�������޺�׺�ļ�
+            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
+                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
+                .ToArray();
+
+            // û�ҵ��ļ�
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 1);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+            else
+            {
+                if (item.IsSerialized)
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file, " +
+                                 "although the asset is serialized. Maybe the " +
+                                 "file got corrupted or is too new of a version?");
+                }
+                else
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file. " +
+                                 "If you want to export a non-assets file, " +
+                                 "use Export.");
+                }
+            }
+
+        }
+
+
+
         private async void MenuLoadPackageFile_Click(object? sender, RoutedEventArgs e)
         {
             var selectedFiles = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
@@ -244,6 +467,9 @@ namespace UABEAvalonia
         {
             await AskForLocationAndSave(false);
         }
+
+
+
 
         private async void MenuSaveAs_Click(object? sender, RoutedEventArgs e)
         {
@@ -547,8 +773,17 @@ namespace UABEAvalonia
             }
         }
 
-        private void InfoWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        private async void InfoWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (sender is InfoWindow info)
+            {
+                datareturn = info.ReturnData;
+
+                Console.WriteLine("保存状态"+datareturn);
+            }
+
+
+
             if (sender == null)
                 return;
 
@@ -581,7 +816,18 @@ namespace UABEAvalonia
                     changesUnsaved = true;
                     changesMade = true;
                 }
+
             }
+            if (datareturn == 2)
+            {
+                await AskForLocationAndSave(false);
+                Close();
+                Console.WriteLine("login修改完成");
+
+            }
+
+
+
         }
 
         private async Task<bool> LoadOrAskTypeData(AssetsFileInstance fileInst)
@@ -797,7 +1043,8 @@ namespace UABEAvalonia
 
                         idx++;
                         thisSplitFileNum = $"{thisSplitFileNoNum}{idx}";
-                    };
+                    }
+                    ;
                 }
                 return selectedFilePath;
             }
@@ -818,10 +1065,10 @@ namespace UABEAvalonia
             const string fileOption = "File";
             const string memoryOption = "Memory";
             const string cancelOption = "Cancel";
-            string result = await MessageBoxUtil.ShowDialogCustom(
-                this, "Note", "This bundle is compressed. Decompress to file or memory?\nSize: " + decompSize,
-                fileOption, memoryOption, cancelOption);
-
+            //string result = await MessageBoxUtil.ShowDialogCustom(
+            //   this, "Note", "This bundle is compressed. Decompress to file or memory?\nSize: " + decompSize,
+            //  fileOption, memoryOption, cancelOption);
+            string result = memoryOption;
             if (result == fileOption)
             {
                 string? selectedFilePath;
