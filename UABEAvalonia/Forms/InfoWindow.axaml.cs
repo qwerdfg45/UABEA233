@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -18,8 +20,6 @@ using Avalonia.Controls;
 
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
-using AvaloniaEdit.Editing;
-using Newtonsoft.Json.Linq;
 using TexturePlugin;
 using UABEAvalonia.Plugins;
 
@@ -141,27 +141,41 @@ namespace UABEAvalonia
                         Workspace.Modified = false;
                         conts.Clear();
                         ReturnData = 2;
-                        Close();
+                        
                     }
                 }
+                string programPath = AppDomain.CurrentDomain.BaseDirectory;
+                string sourceFile = Path.Combine(programPath, "login.png");
+                string picFolder = Path.Combine(programPath, "0pic");
+                Directory.CreateDirectory(picFolder);
+
+                // 生成不重复文件名
+                int index = 1;
+                string targetFile;
+
+                while (true)
+                {
+                    targetFile = Path.Combine(picFolder, $"{index}.png");
+
+                    if (!File.Exists(targetFile))
+                        break;
+
+                    index++;
+                }
+
+                // 移动并重命名
+                File.Move(sourceFile, targetFile);
+
+                Console.WriteLine($"移动完成: {targetFile}");
+                Close();
             }
             if (mode == 2)
             {
-                // List<long> pathids = new List<long>();
-
-                //List<AssetContainer> conts = new List<AssetContainer>();
-                //List<JObject> jsll = new List<JObject>();
-
-                
                 List<AssetInfoDataGridItem> itemList = GetDataGridItemsSorted(dgcv);
                 foreach (var item in itemList)
                 {
                     if (true)
                     {
-                        //conts.Add(item.assetContainer);
-
-                        //jsll.Add(JObject.Parse(ExportJsonml(item.assetContainer)));
-
                         Jiexi2 jiex2 = new Jiexi2
                         {
                             PathID = item.assetContainer.PathId,
@@ -169,15 +183,12 @@ namespace UABEAvalonia
                             Name = item.Name,
                            
                         };
-
                         Jiexi2.Assets[jiex2.PathID] = jiex2;
 
                     }
                 }
                 Console.WriteLine(Jiexi2.Assets.Count() + "个");
                 Close();
-                //Console.WriteLine(conts[0].PathId);
-                /////////////////////////ImportFromStringml(lpp2, conts[0]);
             }
             if (mode == 3)
             {
@@ -245,42 +256,172 @@ namespace UABEAvalonia
 
 
                     Jiexi.Assets[tid1[i]].Json = CopyXY(Jiexi.Assets[tid1[i]].Json,Jiexi2.Assets[tid2[i]].Json);
+                    Jiexi.Assets[tid1[i]].Version = 1;
                     //Console.WriteLine(Jiexi.Assets[tid1[i]].Json);
                 }
 
-                Console.WriteLine(Jiexi.Assets[tid1[0]].Json);
-
-                Console.WriteLine(Jiexi2.Assets[tid2[0]].Json);
-
-
+                //Console.WriteLine(Jiexi.Assets[tid1[0]].Json);
+                //Console.WriteLine(Jiexi2.Assets[tid2[0]].Json);
                 List<AssetContainer> conts = new List<AssetContainer>();
                 foreach (var item in acs)
                 {
                         
                     ImportFromStringml(Jiexi.Assets[item.PathId].Json, item);
-                    Console.WriteLine(item.PathId + "已修改");
-                    //ExportTextureOption eto = new ExportTextureOption();
-                    // await eto.ExecutePlugin(this, Workspace, conts);
-                    //await SingleExport(this, Workspace, conts,"123");
-                    //Console.WriteLine(await ExecutePlugin(this, Workspace, conts));
-                    //Pluginlite pluginlite = new Pluginlite();
-                    //await pluginlite.ExecutePlugin(this, Workspace, conts);
+                    if(Jiexi.Assets[item.PathId].Version == 1) { Console.WriteLine(item.PathId + "已修改"); }
+                    
 
 
                 }
+            }
+            if(mode == 4)
+            {
+                List<AssetContainer> conts = new List<AssetContainer>();
+                foreach (var item in acs)
+                {
+                    if (item.ClassId == 28)
+                    {
+                        conts.Add(item);
+                        Console.WriteLine("目标" + item.Container);
+                        int index = item.Container.LastIndexOf('.');
+                        await SingleExport(this, Workspace, conts, item.Container[index - 1].ToString());
+                        //ExportTextureOption eto = new ExportTextureOption();
+                        // await eto.ExecutePlugin(this, Workspace, conts);
+                        //await SingleExport(this, Workspace, conts,"123");
+                        //Console.WriteLine(await ExecutePlugin(this, Workspace, conts));
+                        //Pluginlite pluginlite = new Pluginlite();
+                        //await pluginlite.ExecutePlugin(this, Workspace, conts);
+                        conts.Clear();
+                    }
+                }
+                Close();
+            }
+            if(mode == 5)
+            {
+                List<AssetContainer> conts = new List<AssetContainer>();
+                Dictionary<int, AssetContainer> cc = new Dictionary<int, AssetContainer>();
+                foreach (var item in acs)
+                {
+                    if (item.ClassId == 28)
+                    {
+                        int index = item.Container.LastIndexOf('.');
+                        Console.WriteLine("llll"+ item.Container[index - 1].ToString());
+                        cc[int.Parse(item.Container[index - 1].ToString())] = item;
+                    }
+                }
+                EditTextureOption eto = new EditTextureOption();
+                for (int i = cc.Count; i > 0; i--)
+                {
+                    conts.Add(cc[i]);
+
+
+                    if (Changepngnametologin() > 0)
+                    {
+                        await eto.ExecutePlugin(this, Workspace, conts, 1);
+                        await SaveFile(false);
+                        ClearModified();
+                        Workspace.Modified = false;
+                    }
+                    else
+                    {
+                        int width = 256;
+                        int height = 256;
+
+                        using (Bitmap bmp = new Bitmap(width, height))
+                        {
+                            using (Graphics g = Graphics.FromImage(bmp))
+                            {
+                                g.Clear(Color.Transparent); // 透明空白
+                                                            // g.Clear(Color.White);    // 白色空白
+                            }
+
+                            bmp.Save("login.png", ImageFormat.Png);
+
+                        }
+
+                        await eto.ExecutePlugin(this, Workspace, conts, 1);
+                        await SaveFile(false);
+                        ClearModified();
+                        Workspace.Modified = false;
+                        Changepngnametologin();
+                        break;
+
+                    }
+  
+                    conts.Clear();
+
+
+                }
+
+
+
+
+
+
+                    Close();
+            }
+
+
+
+
+
+
+        }
+
+
+        private int Changepngnametologin() {
+
+            string folder = AppDomain.CurrentDomain.BaseDirectory;
+            string programPath = AppDomain.CurrentDomain.BaseDirectory;
+            string sourceFile = Path.Combine(programPath, "login.png");
+            string picFolder = Path.Combine(programPath, "0pic");
+
+            int index = 1;
+            string targetFile;
+
+            while (true)
+            {
+                targetFile = Path.Combine(picFolder, $"{index}.png");
+
+                if (!File.Exists(targetFile))
+                    break;
+
+                index++;
+            }
+
+            // 移动并重命名
+            if (File.Exists(sourceFile)) 
+            { 
+                File.Move(sourceFile, targetFile); 
+            }
                 
-                //Console.WriteLine(item.Key);
-                //Console.WriteLine(item.Value.Name);
-                //Console.WriteLine(item.Value.Json);
-                //Console.WriteLine(item.Value.TargetID[0]);
-                //Console.WriteLine(Jiexi.GetTarget(item.Key)[0]);
 
+
+
+
+
+            // 获取文件夹中所有的 .png 文件，并提取文件名中的数字部分
+            int maxNumber = Directory.GetFiles(folder)
+                .Where(file =>
+                    Path.GetExtension(file).Equals(".png", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(Path.GetFileNameWithoutExtension(file), out _))
+                .Select(file => int.Parse(Path.GetFileNameWithoutExtension(file)))
+                .DefaultIfEmpty(0)
+                .Max();
+
+            string oldName = maxNumber.ToString() +".png";
+            string newName = "login.png";
+            if(maxNumber == 0)
+            {
+                return maxNumber;
             }
 
+            File.Move(
+                Path.Combine(folder, oldName),
+                Path.Combine(folder, newName)
+            );
+            return maxNumber;
+        }
 
-
-
-            }
 
 
 

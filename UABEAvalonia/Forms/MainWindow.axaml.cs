@@ -1,16 +1,17 @@
-﻿using AssetsTools.NET;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 
 namespace UABEAvalonia
@@ -40,9 +41,7 @@ namespace UABEAvalonia
             this.AttachDevTools();
 #endif
             //generated events
-            Al_loginth.Click += Al_loginth_Click;
-            Al_texth.Click += Al_texth_Click;
-            Al_texdc.Click += Al_texdc_Click;
+
 
 
             menuOpen.Click += MenuOpen_Click;
@@ -64,6 +63,14 @@ namespace UABEAvalonia
             btnRename.Click += BtnRename_Click;
             Closing += MainWindow_Closing;
 
+
+            Al_loginth.Click += Al_loginth_Click;
+            Al_texth.Click += Al_texth_Click;
+            Al_texdc.Click += Al_texdc_Click;
+            Al_openfold.Click += Al_openfold_Click;
+            Al_facettth.Click += Al_facettth_Click;
+            Al_facettdc.Click += Al_facettdc_Click;
+
             changesUnsaved = false;
             changesMade = false;
             ignoreCloseEvent = false;
@@ -74,15 +81,218 @@ namespace UABEAvalonia
             ThemeHandler.UseDarkTheme = ConfigurationManager.Settings.UseDarkTheme;
         }
 
+
+
+        private async void Al_facettdc_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+            string nameDirectory = Path.Combine(currentDirectory, "0face");
+            string[] selectedFilePaths = Directory.Exists(nameDirectory)
+                ? Directory.GetFiles(nameDirectory)
+                    .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                                && Path.GetFileName(file).Contains("_")
+                                && !Path.GetFileName(file).Contains("_tex")
+                                && !Path.GetFileName(file).Contains("login"))
+                    .ToArray()
+                : Array.Empty<string>();
+
+
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 4);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+
+
+        }
+
+
+
+        private async void Al_facettth_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+            string nameDirectory = Path.Combine(currentDirectory, "0face");
+            string[] selectedFilePaths = Directory.Exists(nameDirectory)
+                ? Directory.GetFiles(nameDirectory)
+                    .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                                && !Path.GetFileName(file).Contains("_")
+                                && !Path.GetFileName(file).Contains("_tex")
+                                && !Path.GetFileName(file).Contains("login"))
+                    .ToArray()
+                : Array.Empty<string>();
+
+
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 5);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+
+
+        }
+
+
+
+
+
+
+
+
+        private async void Al_loginth_Click(object? sender, RoutedEventArgs e)
+        {
+            string currentDirectory = AppContext.BaseDirectory;
+            string nameDirectory = Path.Combine(currentDirectory, "0name");
+            string[] selectedFilePaths = Directory.Exists(nameDirectory)
+                ? Directory.GetFiles(nameDirectory)
+                    .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                                && Path.GetFileName(file).Contains("login")
+                                && !Path.GetFileName(file).Contains("_tex"))
+
+                    .ToArray()
+                : Array.Empty<string>();
+
+            // û�ҵ��ļ�
+            if (selectedFilePaths.Length == 0)
+                return;
+
+            OpenFiles(selectedFilePaths);
+            if (BundleInst == null)
+                return;
+
+            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
+            if (item == null)
+                return;
+
+            string name = item.Name;
+
+            AssetBundleFile bundleFile = BundleInst.file;
+
+            Stream assetStream = item.Stream;
+
+            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
+            assetStream.Position = 0;
+
+            if (fileType == DetectedFileType.AssetsFile)
+            {
+                string assetMemPath = Path.Combine(BundleInst.path, name);
+                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
+
+                if (BundleInst != null && fileInst.parentBundle == null)
+                    fileInst.parentBundle = BundleInst;
+
+                if (!await LoadOrAskTypeData(fileInst))
+                    return;
+
+                // don't check for info open here
+                // we're assuming it's fine since two infos can
+                // be opened from a bundle without problems
+
+                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 1);
+                info.Closing += InfoWindow_Closing;
+                info.Show();
+                openInfoWindows.Add(info);
+            }
+            else
+            {
+                if (item.IsSerialized)
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file, " +
+                                 "although the asset is serialized. Maybe the " +
+                                 "file got corrupted or is too new of a version?");
+                }
+                else
+                {
+                    await MessageBoxUtil.ShowDialog(this,
+                        "Error", "This doesn't seem to be a valid assets file. " +
+                                 "If you want to export a non-assets file, " +
+                                 "use Export.");
+                }
+            }
+
+        }
         private async void Al_texdc_Click(object? sender, RoutedEventArgs e)
         {
             string currentDirectory = AppContext.BaseDirectory;
-
-
-            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
-               .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
-                           && Path.GetFileName(file).Contains("_"))
-               .ToArray();
+            string nameDirectory = Path.Combine(currentDirectory, "0name");
+            string[] selectedFilePaths = Directory.Exists(nameDirectory)
+                ? Directory.GetFiles(nameDirectory)
+                    .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                                && Path.GetFileName(file).Contains("_")
+                                && !Path.GetFileName(file).Contains("_tex")
+                                && !Path.GetFileName(file).Contains("login"))
+                    .ToArray()
+                : Array.Empty<string>();
 
 
             if (selectedFilePaths.Length == 0)
@@ -147,12 +357,15 @@ namespace UABEAvalonia
         private async void Al_texth_Click(object? sender, RoutedEventArgs e)
         {
             string currentDirectory = AppContext.BaseDirectory;
-
-
-            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
-                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
-                            && !Path.GetFileName(file).Contains("_"))
-                .ToArray();
+            string nameDirectory = Path.Combine(currentDirectory, "0name");
+            string[] selectedFilePaths = Directory.Exists(nameDirectory)
+                ? Directory.GetFiles(nameDirectory)
+                    .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                                && !Path.GetFileName(file).Contains("_")
+                                && !Path.GetFileName(file).Contains("_tex")
+                                && !Path.GetFileName(file).Contains("login"))
+                    .ToArray()
+                : Array.Empty<string>();
 
 
             if (selectedFilePaths.Length == 0)
@@ -216,7 +429,17 @@ namespace UABEAvalonia
         }
 
 
-        
+        private void Al_openfold_Click(object? sender, RoutedEventArgs e)
+        {
+            Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "0name"));
+            Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "0face"));
+            Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "0pic"));
+            string folder = AppDomain.CurrentDomain.BaseDirectory;
+
+            Process.Start("explorer.exe", folder);
+
+
+        }
 
 
 
@@ -360,75 +583,7 @@ namespace UABEAvalonia
         }
 
 
-        private async void Al_loginth_Click(object? sender, RoutedEventArgs e)
-        {
-            string currentDirectory = AppContext.BaseDirectory;
-
-            // ��ȡ��ǰĿ¼�������޺�׺�ļ�
-            string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
-                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
-                .ToArray();
-
-            // û�ҵ��ļ�
-            if (selectedFilePaths.Length == 0)
-                return;
-
-            OpenFiles(selectedFilePaths);
-            if (BundleInst == null)
-                return;
-
-            BundleWorkspaceItem? item = (BundleWorkspaceItem?)comboBox.SelectedItem;
-            if (item == null)
-                return;
-
-            string name = item.Name;
-
-            AssetBundleFile bundleFile = BundleInst.file;
-
-            Stream assetStream = item.Stream;
-
-            DetectedFileType fileType = FileTypeDetector.DetectFileType(new AssetsFileReader(assetStream), 0);
-            assetStream.Position = 0;
-
-            if (fileType == DetectedFileType.AssetsFile)
-            {
-                string assetMemPath = Path.Combine(BundleInst.path, name);
-                AssetsFileInstance fileInst = am.LoadAssetsFile(assetStream, assetMemPath, true);
-
-                if (BundleInst != null && fileInst.parentBundle == null)
-                    fileInst.parentBundle = BundleInst;
-
-                if (!await LoadOrAskTypeData(fileInst))
-                    return;
-
-                // don't check for info open here
-                // we're assuming it's fine since two infos can
-                // be opened from a bundle without problems
-
-                InfoWindow info = new InfoWindow(am, new List<AssetsFileInstance> { fileInst }, true, 1);
-                info.Closing += InfoWindow_Closing;
-                info.Show();
-                openInfoWindows.Add(info);
-            }
-            else
-            {
-                if (item.IsSerialized)
-                {
-                    await MessageBoxUtil.ShowDialog(this,
-                        "Error", "This doesn't seem to be a valid assets file, " +
-                                 "although the asset is serialized. Maybe the " +
-                                 "file got corrupted or is too new of a version?");
-                }
-                else
-                {
-                    await MessageBoxUtil.ShowDialog(this,
-                        "Error", "This doesn't seem to be a valid assets file. " +
-                                 "If you want to export a non-assets file, " +
-                                 "use Export.");
-                }
-            }
-
-        }
+        
 
 
 

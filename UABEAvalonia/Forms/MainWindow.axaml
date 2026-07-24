@@ -3,7 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="150"
-        Width="400" Height="150"
+        Width="777" Height="150"
         Icon="/Assets/uabeavalonia16.ico"
         x:Class="UABEAvalonia.MainWindow"
         Title="UABEA"
@@ -28,13 +28,21 @@
 			<MenuItem Header="Help">
 				<MenuItem Header="About..." Name="menuAbout" />
 			</MenuItem>
+			<MenuItem Header="打开文件夹" Name="Al_openfold" >
+			</MenuItem>
 			<MenuItem Header="login替换" Name="Al_loginth" >
 			</MenuItem>
-			<MenuItem Header="tex替换" Name="Al_texth" >
+			<MenuItem Header="tex位置导出" Name="Al_texdc" >
 			</MenuItem>
-			<MenuItem Header="tex导出" Name="Al_texdc" >
+			<MenuItem Header="tex位置替换" Name="Al_texth" >
 			</MenuItem>
-
+			<MenuItem Header="tex贴图替换" Name="Al_texttth" >
+			</MenuItem>
+			<MenuItem Header="face贴图导出" Name="Al_facettdc" >
+			</MenuItem>
+			<MenuItem Header="face贴图替换" Name="Al_facettth" >
+			</MenuItem>
+			
 		</Menu>
 
 		<TextBlock Margin="10,32,10,0" VerticalAlignment="Top" Text="No file opened." TextAlignment="Center" FontWeight="Bold" FontSize="14" Name="lblFileName" />
