@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Platforms>AnyCPU;x64;x86</Platforms>
+    <Platforms>AnyCPU</Platforms>
     <ApplicationIcon>uabeavalonia.ico</ApplicationIcon>
     <PublishAot>true</PublishAot>
   </PropertyGroup>
@@ -49,6 +49,9 @@
     <Reference Include="AssetsTools.NET.Texture">
       <HintPath>..\Libs\AssetsTools.NET.Texture.dll</HintPath>
     </Reference>
+	  <Reference Include="TexturePlugin">
+		  <HintPath>..\Libs\TexturePlugin.dll</HintPath>
+	  </Reference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Grammars\utxt\syntaxes\utxt.tmLanguage.json" />
