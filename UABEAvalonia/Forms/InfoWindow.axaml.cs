@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
@@ -13,9 +15,11 @@ using AssetsTools.NET.Texture;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
+
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using AvaloniaEdit.Editing;
+using Newtonsoft.Json.Linq;
 using TexturePlugin;
 using UABEAvalonia.Plugins;
 
@@ -145,55 +149,211 @@ namespace UABEAvalonia
             {
                 // List<long> pathids = new List<long>();
 
-                List<AssetContainer> conts = new List<AssetContainer>();
+                //List<AssetContainer> conts = new List<AssetContainer>();
+                //List<JObject> jsll = new List<JObject>();
 
-
+                
                 List<AssetInfoDataGridItem> itemList = GetDataGridItemsSorted(dgcv);
                 foreach (var item in itemList)
                 {
-                    if (item.Name.Contains("GameObject"))
+                    if (true)
                     {
-                        conts.Add(item.assetContainer);
+                        //conts.Add(item.assetContainer);
+
+                        //jsll.Add(JObject.Parse(ExportJsonml(item.assetContainer)));
+
+                        Jiexi2 jiex2 = new Jiexi2
+                        {
+                            PathID = item.assetContainer.PathId,
+                            Json = ExportJsonml(item.assetContainer),
+                            Name = item.Name,
+                           
+                        };
+
+                        Jiexi2.Assets[jiex2.PathID] = jiex2;
+
                     }
                 }
-                Console.WriteLine(conts[0].PathId);
+                Console.WriteLine(Jiexi2.Assets.Count() + "个");
+                Close();
+                //Console.WriteLine(conts[0].PathId);
+                /////////////////////////ImportFromStringml(lpp2, conts[0]);
+            }
+            if (mode == 3)
+            {
+                List<AssetInfoDataGridItem> itemList = GetDataGridItemsSorted(dgcv);
+                foreach (var item in itemList)
+                {
+
+                    Jiexi jiex = new Jiexi
+                    {
+                        PathID = item.assetContainer.PathId,
+                        Json = ExportJsonml(item.assetContainer),
+                        Name = item.Name,
+                    };
+
+                    Jiexi.Assets[jiex.PathID] = jiex;
+                    
+                }
+                Console.WriteLine(Jiexi.Assets.Count()+ "个");
+
+                HashSet<string> printed = new();
+                List<long> tid1 = new List<long>();
+                List<long> tid2 = new List<long>();
+                foreach (var item in Jiexi.Assets)
+                {
+                    if (item.Value.Name.Contains("GameObject"))
+                    {
+                        foreach (var item2 in Jiexi2.Assets)
+                        {
+                            if (IsSame(item.Value.Name, item2.Value.Name))
+                            {
+                                if (printed.Add(item2.Value.Name))
+                                {
+
+                                    if (item.Value.TargetID.Count == item2.Value.TargetID.Count)
+                                    {
+                                        Console.WriteLine(item.Value.Name + " 目标数量 一致");
 
 
+                                        foreach (var targetId in item2.Value.TargetID)
+                                        {
+                                            tid2.Add(targetId);
+                                        }
+
+                                        foreach (var targetId in item.Value.TargetID)
+                                        {
+                                            tid1.Add(targetId);
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine(item.Value.Name + " 目标数量 不一致");
+                                    }
+                                }
+
+                                break;
+                            }
+                        }
+
+                    }
+                }
+
+                for(int i = 0; i < tid1.Count; i++)
+                {
 
 
+                    Jiexi.Assets[tid1[i]].Json = CopyXY(Jiexi.Assets[tid1[i]].Json,Jiexi2.Assets[tid2[i]].Json);
+                    //Console.WriteLine(Jiexi.Assets[tid1[i]].Json);
+                }
 
+                Console.WriteLine(Jiexi.Assets[tid1[0]].Json);
+
+                Console.WriteLine(Jiexi2.Assets[tid2[0]].Json);
+
+
+                List<AssetContainer> conts = new List<AssetContainer>();
+                foreach (var item in acs)
+                {
+                        
+                    ImportFromStringml(Jiexi.Assets[item.PathId].Json, item);
+                    Console.WriteLine(item.PathId + "已修改");
+                    //ExportTextureOption eto = new ExportTextureOption();
+                    // await eto.ExecutePlugin(this, Workspace, conts);
+                    //await SingleExport(this, Workspace, conts,"123");
+                    //Console.WriteLine(await ExecutePlugin(this, Workspace, conts));
+                    //Pluginlite pluginlite = new Pluginlite();
+                    //await pluginlite.ExecutePlugin(this, Workspace, conts);
+
+
+                }
                 
+                //Console.WriteLine(item.Key);
+                //Console.WriteLine(item.Value.Name);
+                //Console.WriteLine(item.Value.Json);
+                //Console.WriteLine(item.Value.TargetID[0]);
+                //Console.WriteLine(Jiexi.GetTarget(item.Key)[0]);
 
-
-                AssetTypeValueField? baseField = Workspace.GetBaseField(conts[0]);
-
-                AssetImportExport aie = new AssetImportExport();
-                
-                string lpp1 = aie.RecurseJsonDump(baseField,false).ToString();
-                Console.WriteLine(lpp1);
-
-
-
-
-                string lpp2 = ExportJsonml(conts[0]);
-                Console.WriteLine(lpp2);
-
-
-                ImportFromStringml(lpp2, conts[0]);
-
-
-
-
-
-
-
+            }
 
 
 
 
             }
+
+
+
+    private string CopyXY(string jsonA, string jsonB)
+    {
+        JsonNode a = JsonNode.Parse(jsonA)!;
+        JsonNode b = JsonNode.Parse(jsonB)!;
+
+        CopyXYRecursive(a, b);
+
+        string result = a.ToJsonString(new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+        return result;
+    }
+
+    private static void CopyXYRecursive(JsonNode? aNode, JsonNode? bNode)
+    {
+        if (aNode == null || bNode == null)
+            return;
+
+        // 当前节点同时存在x,y
+        if (bNode is JsonObject bObj &&
+            bObj.ContainsKey("x") &&
+            bObj.ContainsKey("y") &&
+            aNode is JsonObject aObj)
+        {
+            if (aObj.ContainsKey("x"))
+                aObj["x"] = bObj["x"]!.DeepClone();
+
+            if (aObj.ContainsKey("y"))
+                aObj["y"] = bObj["y"]!.DeepClone();
         }
 
+
+        // 继续递归子节点
+        if (bNode is JsonObject obj)
+        {
+            foreach (var pair in obj)
+            {
+                if (aNode[pair.Key] != null)
+                {
+                    CopyXYRecursive(aNode[pair.Key], pair.Value);
+                }
+            }
+        }
+        else if (bNode is JsonArray array)
+        {
+            for (int i = 0; i < array.Count; i++)
+            {
+                if (aNode[i] != null)
+                {
+                    CopyXYRecursive(aNode[i], array[i]);
+                }
+            }
+        }
+    }
+    private bool IsSame(string a, string b)
+        {
+            string Clean(string s)
+            {
+                // 删除下划线
+                s = s.Replace("_", "");
+
+                // 删除非空格前面的数字
+                s = Regex.Replace(s, @"(?<=\S)\d+", "");
+
+                return s;
+            }
+
+            return Clean(a) == Clean(b);
+        }
         public async Task<bool> SingleExport(Window win, AssetWorkspace workspace, List<AssetContainer> selection, string name)
         {
             AssetContainer cont = selection[0];
@@ -1443,7 +1603,7 @@ namespace UABEAvalonia
                 Modified = modified,
                 assetContainer = cont
             };
-            Console.WriteLine($"{name,-25} {container,-40} {pathId,20}");
+            Console.WriteLine($"{name,-25} {pathId,20} {container,-40} ");
             if (!isNewAsset)
                 dataGridItems.Add(item);
             else

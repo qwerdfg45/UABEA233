@@ -80,8 +80,9 @@ namespace UABEAvalonia
 
 
             string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
-                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
-                .ToArray();
+               .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                           && Path.GetFileName(file).Contains("_"))
+               .ToArray();
 
 
             if (selectedFilePaths.Length == 0)
@@ -147,12 +148,13 @@ namespace UABEAvalonia
         {
             string currentDirectory = AppContext.BaseDirectory;
 
-            
+
             string[] selectedFilePaths = Directory.GetFiles(currentDirectory)
-                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file)))
+                .Where(file => string.IsNullOrEmpty(Path.GetExtension(file))
+                            && !Path.GetFileName(file).Contains("_"))
                 .ToArray();
 
-            
+
             if (selectedFilePaths.Length == 0)
                 return;
 
